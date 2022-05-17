@@ -794,6 +794,10 @@ PintArray._add_comparison_ops()
 register_extension_dtype(PintType)
 
 
+# Magic 'unit' flagging columns with no unit support, used in
+# quantify/dequantify
+NO_UNIT="N/U"
+
 @register_dataframe_accessor("pint")
 class PintDataFrameAccessor(object):
     def __init__(self, pandas_obj):
@@ -807,7 +811,7 @@ class PintDataFrameAccessor(object):
         df_columns = df_columns.drop(columns=unit_col_name)
 
         df_new = DataFrame(
-            {i: PintArray(df.values[:, i], unit) for i, unit in enumerate(units.values)}
+            {i: PintArray(df.values[:, i], unit) if unit != NO_UNIT else df.values[:,i] for i, unit in enumerate(units.values)}
         )
 
         df_new.columns = df_columns.index.droplevel(unit_col_name)
@@ -824,7 +828,7 @@ class PintDataFrameAccessor(object):
 
         df_columns = df.columns.to_frame()
         df_columns["units"] = [
-            formatter_func(df[col].values.units) for col in df.columns
+            formatter_func(df[col].values.units) if hasattr( df[col].values, "units") else NO_UNIT for col in df.columns
         ]
         from collections import OrderedDict
 
@@ -844,7 +848,7 @@ class PintDataFrameAccessor(object):
         index = object.__getattribute__(obj, "index")
         # name = object.__getattribute__(obj, '_name')
         return DataFrame(
-            {col: df[col].pint.to_base_units() for col in df.columns}, index=index
+            {col: df[col].pint.to_base_units() if hasattr( df[col].values, "units") else df[col] for col in df.columns}, index=index
         )
 
 
